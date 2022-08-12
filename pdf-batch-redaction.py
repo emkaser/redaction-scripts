@@ -1,71 +1,64 @@
 # imports
 import fitz
-import re
+import os
+import sys
 
-# Code from https://www.geeksforgeeks.org/pdf-redaction-using-python/
+dir = sys.argv[1]
 
-class Redactor:
-   
-    # static methods work independent of class object
-    @staticmethod
-    def get_sensitive_data(lines):
-       
-        """ Function to get all the lines """
-         
-        # email regex
-        EMAIL_REG = r"([\w\.\d]+\@[\w\d]+\.[\w\d]+)"
-        for line in lines:
-           
-            # matching the regex to each line
-            if re.search(EMAIL_REG, line, re.IGNORECASE):
-                search = re.search(EMAIL_REG, line, re.IGNORECASE)
-                 
-                # yields creates a generator
-                # generator is used to return
-                # values in between function iterations
-                yield search.group(1)
- 
-    # constructor
-    def __init__(self, path):
-        self.path = path
- 
-    def redaction(self):
-       
-        """ main redactor code """
-         
-        # opening the pdf
-        doc = fitz.open(self.path)
-        print(doc)
-         
-        # iterating through pages
-        for page in doc:
-            print(page)
-           
-            # _wrapContents is needed for fixing
-            # alignment issues with rect boxes in some
-            # cases where there is alignment issue
-            #page.wrapContents()
-             
-            # getting the rect boxes which consists the matching email regex
-            sensitive = self.get_sensitive_data(page.getText("text")
-                                                .split('\n'))
-            for data in sensitive:
-                areas = page.searchFor(data)
-                 
-                # drawing outline over sensitive datas
-                [page.addRedactAnnot(area, fill = (0, 0, 0)) for area in areas]
-                 
-            # applying the redaction
-            page.apply_redactions()
-             
-        # saving it to a new pdf
-        doc.save('newPDF.pdf')
-        print("Successfully redacted")
- 
-# driver code for testing
+def find_files_in_dir(dirpath):
+    """Scans a directory tree and gets os.DirEntry objects for the specified files
+    
+    Adapted from code by Ben Hoyt on Stackoverflow: https://stackoverflow.com/a/33135143 
+
+    Parameters
+    -----------
+    dirpath : str
+        The file path of the directory to scan
+    
+    Returns
+    -----------
+    os.DirEntry object
+        Inidividual os.DirEntry objects for the specified files as they are generated
+        Description of os.DirEntry attributes: https://docs.python.org/3/library/os.html#os.DirEntry
+    """
+
+    for entry in os.scandir(dirpath):
+        if entry.is_dir():
+            yield from find_files_in_dir(entry.path)
+        else:
+            filename = str(entry.name)
+            try:
+                if filename.startswith(("Application-", "Judge-")):
+                    if filename.endswith(".pdf"):
+                        yield entry
+            except TypeError:
+                continue
+
+def redaction(file):
+
+    #Adapted from code: https://www.geeksforgeeks.org/pdf-redaction-using-python/
+
+    doc = fitz.open(file)
+    for page in doc:
+        text = page.get_text()
+        start = "Login and Password information if needed\n"
+        end = "\nStory Link 1"
+        #print(file)
+
+        try:
+            result = text[text.index(start)+len(start):text.index(end)]
+            for rect in page.search_for(result):
+                page.add_redact_annot(rect)
+            
+        except ValueError:
+            continue 
+        page.apply_redactions()
+        new = file.split(".pdf")[0]
+        newname = f"{new}_redacted.pdf"
+        print(newname)
+    doc.save(newname)
+
 if __name__ == "__main__":
-   
-    # replace it with name of the pdf file
-    path = "PDFtoredact.pdf"
-    redactor = Redactor(path)
-    redactor.redaction()
+    for entry in find_files_in_dir(dir):
+        filepath = entry.path
+        redaction(filepath)
