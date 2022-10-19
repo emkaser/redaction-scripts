@@ -4,8 +4,9 @@ This script parses searchable (i.e. OCR-readable) PDFs to identify strings for r
 It creates a "quad" around the specified area in the PDF and permanently deletes text 
 within that area, replacing it with a black rectangle.
 
-Using the optional argument "overwrite" will overwrite the existing file with the redacted 
-version. Otherwise, it will automatically save a new copy with "_redacted" in the file name.
+Using the optional argument "replace" will save a new redacted copy of the file and delete
+the unredacted original. If no argument is used, the script will automatically save a new 
+file with "_redacted" in the file name alongside the original.
 
 This script requires an installation of PyMuPDF in your Python environment: https://github.com/pymupdf/PyMuPDF#installation
 
@@ -75,8 +76,7 @@ def find_redaction_log(dir):
 
     with os.scandir(dir) as d:
         for entry in d:
-            fname = str(entry)
-            if 'redactionlog' in fname:
+            if 'redactionlog' in str(entry):
                 redact_log = entry.path
                 return str(redact_log)
 
@@ -109,8 +109,8 @@ def redaction(file):
     Adapted from code: https://www.geeksforgeeks.org/pdf-redaction-using-python/ 
 
     [[Future issue: PyMuPDF can only iterate by page and will throw errors on substrings that
-    are split. Better future solution would be regex that doesn't rely on starting/ending 
-    strings being on the same page.]]
+    are split. Future solution could be regex that doesn't rely on starting/ending strings being
+    on the same page, or a function that combines all text without breaks before searching it.]]
 
     Parameters
     -----------
@@ -184,7 +184,7 @@ def redaction(file):
 def batch_redact(dir):
     """Iterates through a directory, calling the redaction() function for each
     appropriate file, printing the result to the terminal, and logging both 
-    successful redactions and errors in the CSV redaction log.
+    successful redactions and attempts with errors in the CSV redaction log.
 
     Parameters
     -----------
