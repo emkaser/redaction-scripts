@@ -80,6 +80,27 @@ def find_redaction_log(dir):
                 redact_log = entry.path
                 return str(redact_log)
 
+def log_file(file, error=None):
+    """Adds a filepath, timestamp, and optional error field to the redaction log.
+    
+    Parameters
+    -----------
+    file : str
+        The path of the file the script is trying to redact
+    
+    error: str
+        Text to appear in the "Notes" field of the redaction log
+
+    Returns
+    -----------
+    None
+    """
+    data = []
+    data.append(file)
+    data.append(datetime.now().strftime("%Y-%m-%d"))
+    data.append({error})
+    writer.writerow(data)
+
 def redaction(file):
     """Opens a file, locates the text to redact by identifying starting and ending strings, 
     and then redacts it. If the "overwrite" argument is used, overwrites the existing PDF 
@@ -87,23 +108,31 @@ def redaction(file):
     
     Adapted from code: https://www.geeksforgeeks.org/pdf-redaction-using-python/ 
 
+    [[Future issue: PyMuPDF can only iterate by page and will throw errors on substrings that
+    are split. Better future solution would be regex that doesn't rely on starting/ending 
+    strings being on the same page.]]
+
     Parameters
     -----------
-    file : os.DirEntry object
-        The object yielded by the find_files_in_dir() iterator for the file
+    file : path attribute of os.DirEntry object
+        The path attribute of an object yielded by the find_files_in_dir() iterator
+    
+    Returns
+    -----------
+    file: path attribute of os.DirEntry object
+        The path attribute of a file object that has been successfully redacted
+        
     """
 
     doc = fitz.open(os.path.join(dir, file))
     print(doc)
 
-    #filepath = file.rsplit('\\', 3)[-3:]
-    #filename = '\\'.join(filepath)
-    #sensitive_files = []
     file_stat = 'Unredacted'
 
     for page in doc:
         text = page.get_text()
 
+        # Change these substrings to search the PDF text and find the specific redaction area
         start_redact = "Login and Password information if needed\n"
         end_redact1 = "\nStory Link 1"
         end_redact2 = "\nVideo Upload 1"
@@ -111,18 +140,13 @@ def redaction(file):
 
         result = None
 
-## Potential issue: Can only iterate by page, so what if substring is split? Better future solution would be regex that doesn't rely on starting/ending strings being on the same page.
         if end_redact1 in text:
             error = "CHECK FILE: Potential redaction found but not completed"
             try:
                 result = text[text.index(start_redact)+len(start_redact):text.index(end_redact1)]
             except ValueError:
                 print(f'\t> {error}')
-                data = []
-                data.append(file)
-                data.append(datetime.now().strftime("%Y-%m-%d"))
-                data.append({error})
-                writer.writerow(data)
+                log_file(file, error)
                 result = None
 
         if end_redact2 in text:
@@ -130,11 +154,7 @@ def redaction(file):
                 result = text[text.index(start_redact)+len(start_redact):text.index(end_redact2)]
             except ValueError:
                 print(f'\t> {error}')
-                data = []
-                data.append(file)
-                data.append(datetime.now().strftime("%Y-%m-%d"))
-                data.append({error})
-                writer.writerow(data)
+                log_file(file, error)
                 result = None
 
         if end_redact3 in text:
@@ -142,11 +162,7 @@ def redaction(file):
                 result = text[text.index(start_redact)+len(start_redact):text.index(end_redact3)]
             except ValueError:
                 print(f'\t> {error}')
-                data = []
-                data.append(file)
-                data.append(datetime.now().strftime("%Y-%m-%d"))
-                data.append({error})
-                writer.writerow(data)
+                log_file(file, error)
                 result = None
 
         if result != None:
@@ -163,34 +179,43 @@ def redaction(file):
         doc.save(newname)
         print(f'\t> REDACTED')
         return file
-        #sensitive_files.append(file)
 
-    #return sensitive_files
 
 def batch_redact(dir):
+    """Iterates through a directory, calling the redaction() function for each
+    appropriate file, printing the result to the terminal, and logging both 
+    successful redactions and errors in the CSV redaction log.
+
+    Parameters
+    -----------
+    dir : str
+        The file path of the directory containing the files to be redacted
+    
+    Returns
+    -----------
+    files: list
+        A list of redacted files
+        
+    """ 
+
     files = []
     count = 0
     for entry in find_files_in_dir(dir):
-        
         count += 1
         filepath = entry.path
         print(f'\n{count}) {filepath}')
+
         try:
             f = redaction(filepath)
         except Exception:
-            data = []
-            data.append(filepath)
-            data.append(datetime.now().strftime("%Y-%m-%d"))
-            data.append('ERROR - needs review')
-            writer.writerow(data)
+            error = 'ERROR - needs review'
+            log_file(filepath, error)
+
         if f != None:
-            data = []
-            files.append(f)
-            data.append(f)
-            data.append(datetime.now().strftime("%Y-%m-%d"))
-            writer.writerow(data)
+            log_file(f)
 
     return files
+
 
 if __name__ == "__main__":
 
