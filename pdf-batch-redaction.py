@@ -213,6 +213,7 @@ def batch_redact(dir):
 
         if f != None:
             log_file(f)
+            files.append(f)
 
     return files
 
