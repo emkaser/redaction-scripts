@@ -125,7 +125,6 @@ def redaction(file):
     """
 
     doc = fitz.open(os.path.join(dir, file))
-    print(doc)
 
     file_stat = 'Unredacted'
 
@@ -145,7 +144,7 @@ def redaction(file):
             try:
                 result = text[text.index(start_redact)+len(start_redact):text.index(end_redact1)]
             except ValueError:
-                print(f'\t> {error}')
+                #print(f'\t> {error}')
                 log_file(file, error)
                 result = None
 
@@ -153,7 +152,7 @@ def redaction(file):
             try:
                 result = text[text.index(start_redact)+len(start_redact):text.index(end_redact2)]
             except ValueError:
-                print(f'\t> {error}')
+                #print(f'\t> {error}')
                 log_file(file, error)
                 result = None
 
@@ -161,7 +160,7 @@ def redaction(file):
             try:
                 result = text[text.index(start_redact)+len(start_redact):text.index(end_redact3)]
             except ValueError:
-                print(f'\t> {error}')
+                #print(f'\t> {error}')
                 log_file(file, error)
                 result = None
 
@@ -177,7 +176,7 @@ def redaction(file):
         new = file.split(".pdf")[0]
         newname = f"{new}_redacted.pdf"
         doc.save(newname)
-        print(f'\t> REDACTED')
+        #print(f'\t> REDACTED')
         return file
 
 
@@ -203,7 +202,7 @@ def batch_redact(dir):
     for entry in find_files_in_dir(dir):
         count += 1
         filepath = entry.path
-        print(f'\n{count}) {filepath}')
+        #print(f'\n{count}) {filepath}')
 
         try:
             f = redaction(filepath)
